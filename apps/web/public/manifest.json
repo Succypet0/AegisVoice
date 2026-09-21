@@ -1,0 +1,16 @@
+{
+  "name": "AegisVoice Guard",
+  "short_name": "AegisGuard",
+  "description": "Tactical Emergency Escort & Stealth Voice Intelligence",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070B12",
+  "theme_color": "#06B6D4",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}

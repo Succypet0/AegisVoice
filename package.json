@@ -1,0 +1,27 @@
+{
+  "name": "aegis-voice",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AegisVoice — Autonomous Emergency Voice Intelligence & Dispatch CAD System",
+  "scripts": {
+    "build": "cd apps/web && npm run build",
+    "build:unified": "cd apps/web && npm run build",
+    "start": "cd apps/web && npm run start",
+    "start:local": "powershell -ExecutionPolicy Bypass -File ./run_unified.ps1",
+    "start:unified": "powershell -ExecutionPolicy Bypass -File ./run_unified.ps1",
+    "stop": "powershell -ExecutionPolicy Bypass -File ./stop_servers.ps1",
+    "test:backend": "python backend/test_integration.py",
+    "build:pwa": "cd apps/guard-pwa && npm run build",
+    "build:cad": "cd apps/dispatch-portal && npm run build",
+    "build:all": "cd apps/web && npm run build"
+  },
+  "keywords": [
+    "assemblyai",
+    "voice-agent",
+    "emergency-cad",
+    "pwa",
+    "hackathon"
+  ],
+  "author": "AegisVoice Team",
+  "license": "MIT"
+}

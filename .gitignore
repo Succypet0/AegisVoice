@@ -1,0 +1,94 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Next.js
+.next/
+out/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+tempCodeRunnerFile.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation & AI Assistant Context (not needed for app execution)
+CLAUDE.md
+AGENTS.md
+checkpoints.md
+explain_reason_for_actions.md
+PROBLEM_STATEMENT.md
+.agent/
+.claude/
+*.jpg
+*.jpeg
+*.png
+!aegis_user_main_screen.jpg
+*.log
+scratch/
+PRD.md
+PRD_MERGED.md
+checkpoints_merged.md
+
+# Commercial Enterprise Standalone Apps (Preserved locally for post-hackathon startup)
+apps/guard-pwa
+apps/dispatch-portal
+
+# Test & Verification files (not required for runtime production)
+test_*.py
+*_test.py
+verify_*.py
+backend/test_*.py
+backend/verify_*.py
+*.test.js
+*.test.ts
+*.test.jsx
+*.test.tsx
+*.spec.js
+*.spec.ts
+*.spec.jsx
+*.spec.tsx
+tests/
+__tests__/
