@@ -13,7 +13,7 @@
 
 **Quiet courage. Invisible protection. Instant rescue.**
 
-[Live Civilian Escort (/)](http://localhost:3000/) • [CAD Operator Command Center (/dispatch)](http://localhost:3000/dispatch) • [System Architecture](#system-architecture) • [Quickstart Guide](#quickstart--developer-setup)
+[Live Civilian Escort (/)](https://web-xi-weld-22.vercel.app/) • [CAD Operator Command Center (/dispatch)](https://web-xi-weld-22.vercel.app/dispatch) • [System Architecture](#system-architecture) • [Quickstart Guide](#quickstart--developer-setup)
 
 </div>
 
