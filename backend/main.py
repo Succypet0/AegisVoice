@@ -35,6 +35,7 @@ from db import (
     update_incident_transcript,
     update_incident_triage,
     update_user,
+    upsert_user,
 )
 from services.assemblyai_stt import AssemblyAIStreamingClient
 from services.llm_triage import triage_distress_transcript
@@ -351,6 +352,10 @@ async def websocket_guard_endpoint(websocket: WebSocket):
                 "status": "ACTIVE_TRIAGE",
                 "gps": session_state.current_gps,
                 "transcript_log": context_text,
+                "victim_name": session_state.user_profile.get("name") if session_state.user_profile else "Civilian Protected",
+                "victim_phone": session_state.user_profile.get("phone") if session_state.user_profile else "",
+                "medical_notes": session_state.user_profile.get("medical_notes") if session_state.user_profile else "",
+                "emergency_contacts": session_state.user_profile.get("emergency_contacts", []) if session_state.user_profile else [],
             })
             session_state.incident_id = incident_id
         else:
@@ -413,7 +418,15 @@ async def websocket_guard_endpoint(websocket: WebSocket):
                     target_user_id = event.get("user_id", "usr_sarah_01")
                     session_state.user_id = target_user_id
 
-                    found_profile = get_user(target_user_id) or get_user("usr_sarah_01")
+                    # Check if client provided full user profile in event (self-healing handshake)
+                    incoming_profile = event.get("user_profile")
+                    found_profile = None
+                    if incoming_profile and isinstance(incoming_profile, dict) and incoming_profile.get("name"):
+                        found_profile = upsert_user(incoming_profile)
+                        session_state.user_id = found_profile.get("user_id", target_user_id)
+                    else:
+                        found_profile = get_user(target_user_id) or get_user("usr_sarah_01")
+
                     session_state.user_profile = found_profile
 
                     duress_override = event.get("duress_phrase") or (
@@ -437,6 +450,10 @@ async def websocket_guard_endpoint(websocket: WebSocket):
                         "status": "MONITORING",
                         "gps": session_state.current_gps,
                         "transcript_log": "",
+                        "victim_name": session_state.user_profile.get("name") if session_state.user_profile else "Civilian Protected",
+                        "victim_phone": session_state.user_profile.get("phone") if session_state.user_profile else "",
+                        "medical_notes": session_state.user_profile.get("medical_notes") if session_state.user_profile else "",
+                        "emergency_contacts": session_state.user_profile.get("emergency_contacts", []) if session_state.user_profile else [],
                     })
                     session_state.incident_id = inc_id
 
@@ -508,8 +525,18 @@ async def websocket_dispatch_endpoint(websocket: WebSocket):
         recent_incidents = get_all_incidents()
         active_user = session_state.user_profile
         if not active_user:
-            if recent_incidents and recent_incidents[0].get("user_id"):
-                active_user = get_user(recent_incidents[0]["user_id"])
+            if recent_incidents:
+                first_inc = recent_incidents[0]
+                if first_inc.get("victim_name") and first_inc.get("victim_name") != "Registered Civilian":
+                    active_user = {
+                        "user_id": first_inc.get("user_id"),
+                        "name": first_inc.get("victim_name"),
+                        "phone": first_inc.get("victim_phone", ""),
+                        "medical_notes": first_inc.get("medical_notes", ""),
+                        "emergency_contacts": first_inc.get("emergency_contacts", []),
+                    }
+                elif first_inc.get("user_id"):
+                    active_user = get_user(first_inc["user_id"])
             if not active_user:
                 active_user = get_user("usr_sarah_01")
 

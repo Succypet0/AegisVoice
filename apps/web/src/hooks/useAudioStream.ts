@@ -69,7 +69,7 @@ export function useAudioStream() {
     };
   }, []);
 
-  const connectWebSocket = useCallback((duressPhrase: string, userId: string = "usr_sarah_01"): Promise<WebSocket> => {
+  const connectWebSocket = useCallback((duressPhrase: string, userId: string = "usr_sarah_01", userProfile?: any): Promise<WebSocket> => {
     return new Promise((resolve, reject) => {
       try {
         const ws = new WebSocket(WS_GUARD_URL);
@@ -80,9 +80,10 @@ export function useAudioStream() {
           ws.send(
             JSON.stringify({
               type: "START_ESCORT",
-              user_id: userId,
+              user_id: userProfile?.user_id || userId,
               duress_phrase: duressPhrase,
               gps,
+              user_profile: userProfile,
             })
           );
           resolve(ws);
@@ -123,7 +124,8 @@ export function useAudioStream() {
 
   const startEscort = async (
     duressPhrase: string = "order iced coffee",
-    userId: string = "usr_sarah_01"
+    userId: string = "usr_sarah_01",
+    userProfile?: any
   ) => {
     try {
       // 1. Request microphone permission
@@ -155,7 +157,7 @@ export function useAudioStream() {
       workletNodeRef.current = workletNode;
 
       // 5. Connect WebSocket
-      const ws = await connectWebSocket(duressPhrase, userId);
+      const ws = await connectWebSocket(duressPhrase, userId, userProfile);
 
       // 6. Handle PCM frames from AudioWorklet
       workletNode.port.onmessage = (e) => {

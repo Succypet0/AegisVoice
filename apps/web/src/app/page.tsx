@@ -21,7 +21,7 @@ import { RegistrationWizard, UserProfile } from "@/components/guard/Registration
 import { useAudioStream } from "@/hooks/useAudioStream";
 import { useWakeLock } from "@/hooks/useWakeLock";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+const BACKEND_URL = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000").replace(/\/+$/, "");
 
 export default function GuardPage() {
   const {
@@ -44,6 +44,18 @@ export default function GuardPage() {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
 
   // Active User Profile
+  const [activeProfile, setActiveProfile] = useState<UserProfile | null>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("aegis_user_profile");
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch (e) {}
+      }
+    }
+    return null;
+  });
+
   const [activeUserId, setActiveUserId] = useState<string>(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("aegis_user_id") || "usr_sarah_01";
@@ -68,6 +80,20 @@ export default function GuardPage() {
   // Load user profile on mount or prompt registration if new
   useEffect(() => {
     async function initUser() {
+      const storedProfileStr = localStorage.getItem("aegis_user_profile");
+      if (storedProfileStr) {
+        try {
+          const p = JSON.parse(storedProfileStr);
+          setActiveProfile(p);
+          if (p.user_id) setActiveUserId(p.user_id);
+          if (p.name) setActiveUserName(p.name);
+          if (p.duress_phrase) setDuressPhrase(p.duress_phrase);
+          if (p.emergency_contacts && p.emergency_contacts.length > 0) {
+            setContacts(p.emergency_contacts);
+          }
+        } catch (e) {}
+      }
+
       const storedId = localStorage.getItem("aegis_user_id");
       const storedName = localStorage.getItem("aegis_user_name");
 
@@ -89,6 +115,8 @@ export default function GuardPage() {
           if (data.emergency_contacts && data.emergency_contacts.length > 0) {
             setContacts(data.emergency_contacts);
           }
+          setActiveProfile(data);
+          localStorage.setItem("aegis_user_profile", JSON.stringify(data));
         }
       } catch (err) {
         console.warn("[Guard PWA] Offline or backend not reachable yet, using local profile.");
@@ -98,7 +126,19 @@ export default function GuardPage() {
   }, []);
 
   const handleActivate = async () => {
-    const ok = await startEscort(duressPhrase, activeUserId);
+    const profilePayload: any = activeProfile ? { ...activeProfile } : {
+      user_id: activeUserId,
+      name: activeUserName,
+      phone: "",
+      duress_phrase: duressPhrase,
+      medical_notes: "",
+      emergency_contacts: contacts,
+    };
+    profilePayload.duress_phrase = duressPhrase;
+    profilePayload.emergency_contacts = contacts;
+    profilePayload.name = activeUserName;
+
+    const ok = await startEscort(duressPhrase, activeUserId, profilePayload);
     if (ok) {
       await requestLock();
     }
@@ -112,6 +152,15 @@ export default function GuardPage() {
   const handleSaveContacts = async (updatedContacts: any[], updatedPhrase: string) => {
     setContacts(updatedContacts);
     setDuressPhrase(updatedPhrase);
+    if (activeProfile) {
+      const updated = {
+        ...activeProfile,
+        duress_phrase: updatedPhrase,
+        emergency_contacts: updatedContacts,
+      };
+      setActiveProfile(updated);
+      localStorage.setItem("aegis_user_profile", JSON.stringify(updated));
+    }
     try {
       await fetch(`${BACKEND_URL}/api/user/${activeUserId}`, {
         method: "PUT",
@@ -127,21 +176,42 @@ export default function GuardPage() {
   };
 
   const handleOnboardingComplete = (profile: UserProfile) => {
+    setActiveProfile(profile);
     setActiveUserId(profile.user_id);
     setActiveUserName(profile.name);
     setDuressPhrase(profile.duress_phrase);
     if (profile.emergency_contacts && profile.emergency_contacts.length > 0) {
       setContacts(profile.emergency_contacts);
     }
+    localStorage.setItem("aegis_user_id", profile.user_id);
+    localStorage.setItem("aegis_user_name", profile.name);
+    localStorage.setItem("aegis_user_profile", JSON.stringify(profile));
     setIsWizardOpen(false);
   };
 
   const handleSelectSarahDemo = async () => {
     const sarahId = "usr_sarah_01";
+    const sarahProfile: UserProfile = {
+      user_id: sarahId,
+      name: "Sarah Jenkins",
+      phone: "+2348012345678",
+      duress_phrase: "Order iced coffee",
+      medical_notes: "Asthma, Blood Type O+",
+      emergency_contacts: [
+        { name: "Mom (Helen)", phone: "+2348033334455", priority: 1 },
+        { name: "Mark (Brother)", phone: "+2348055556677", priority: 2 },
+        { name: "Elena (Roommate)", phone: "+2348077778899", priority: 3 },
+        { name: "David (Partner)", phone: "+2348099990011", priority: 4 },
+        { name: "Neighborhood Security", phone: "+2348022223344", priority: 5 },
+      ],
+    };
+
+    setActiveProfile(sarahProfile);
     setActiveUserId(sarahId);
     setActiveUserName("Sarah Jenkins");
     localStorage.setItem("aegis_user_id", sarahId);
     localStorage.setItem("aegis_user_name", "Sarah Jenkins");
+    localStorage.setItem("aegis_user_profile", JSON.stringify(sarahProfile));
 
     try {
       const res = await fetch(`${BACKEND_URL}/api/user/${sarahId}`);
@@ -149,6 +219,8 @@ export default function GuardPage() {
         const data = await res.json();
         if (data.duress_phrase) setDuressPhrase(data.duress_phrase);
         if (data.emergency_contacts) setContacts(data.emergency_contacts);
+        setActiveProfile(data);
+        localStorage.setItem("aegis_user_profile", JSON.stringify(data));
       }
     } catch (e) {
       setDuressPhrase("Order iced coffee");

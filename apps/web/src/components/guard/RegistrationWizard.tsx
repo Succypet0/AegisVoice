@@ -133,7 +133,7 @@ export const RegistrationWizard: React.FC<RegistrationWizardProps> = ({
     };
 
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+      const backendUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000").replace(/\/+$/, "");
       const res = await fetch(`${backendUrl}/api/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -153,6 +153,7 @@ export const RegistrationWizard: React.FC<RegistrationWizardProps> = ({
       // Save locally
       localStorage.setItem("aegis_user_id", profile.user_id);
       localStorage.setItem("aegis_user_name", profile.name);
+      localStorage.setItem("aegis_user_profile", JSON.stringify(profile));
 
       onRegistered(profile);
     } catch (err: any) {
@@ -169,6 +170,7 @@ export const RegistrationWizard: React.FC<RegistrationWizardProps> = ({
       };
       localStorage.setItem("aegis_user_id", fallbackId);
       localStorage.setItem("aegis_user_name", payload.name);
+      localStorage.setItem("aegis_user_profile", JSON.stringify(fallbackProfile));
       onRegistered(fallbackProfile);
     } finally {
       setIsSubmitting(false);

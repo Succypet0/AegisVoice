@@ -16,7 +16,7 @@ function getDispatchWsUrl(): string {
 
 const WS_DISPATCH_URL = getDispatchWsUrl();
 const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+  (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000").replace(/\/+$/, "");
 
 export interface TranscriptTurn {
   id: string;

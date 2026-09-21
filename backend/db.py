@@ -98,6 +98,39 @@ def create_user(user_data: Dict[str, Any]) -> str:
     return user_id
 
 
+def upsert_user(user_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Creates or updates a user profile in TinyDB by user_id or phone."""
+    db = get_db()
+    users_table = db.table("users")
+    user_query = Query()
+    user_id = user_data.get("user_id")
+    phone = user_data.get("phone")
+
+    existing = None
+    if user_id:
+        existing = users_table.get(user_query.user_id == user_id)
+    if not existing and phone:
+        existing = users_table.get(user_query.phone == phone)
+
+    if existing:
+        matched_id = existing.get("user_id", user_id)
+        user_data["user_id"] = matched_id
+        users_table.update(user_data, user_query.user_id == matched_id)
+        db.close()
+        return get_user(matched_id) or user_data
+    else:
+        if not user_id:
+            user_id = f"usr_{uuid.uuid4().hex[:8]}"
+        user_data["user_id"] = user_id
+        if "created_at" not in user_data:
+            user_data["created_at"] = datetime.now(timezone.utc).isoformat()
+        if "emergency_contacts" not in user_data:
+            user_data["emergency_contacts"] = []
+        users_table.insert(user_data)
+        db.close()
+        return get_user(user_id) or user_data
+
+
 def list_users() -> List[Dict[str, Any]]:
     """Retrieves all registered user profiles."""
     db = get_db()
@@ -159,13 +192,13 @@ def create_incident(incident_data: Dict[str, Any]) -> str:
         user_query = Query()
         user = users_table.get(user_query.user_id == user_id)
         if user:
-            if "victim_name" not in incident_data:
+            if not incident_data.get("victim_name"):
                 incident_data["victim_name"] = user.get("name", "Civilian Protected")
-            if "victim_phone" not in incident_data:
+            if not incident_data.get("victim_phone"):
                 incident_data["victim_phone"] = user.get("phone", "")
-            if "medical_notes" not in incident_data:
+            if not incident_data.get("medical_notes"):
                 incident_data["medical_notes"] = user.get("medical_notes", "")
-            if "emergency_contacts" not in incident_data:
+            if not incident_data.get("emergency_contacts"):
                 incident_data["emergency_contacts"] = user.get("emergency_contacts", [])
 
     incidents_table.insert(incident_data)
