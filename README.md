@@ -209,7 +209,7 @@ npm run start                    # Starts on http://localhost:3000
 
 Follow this 4-step script during evaluation:
 
-1. **Step 1: Open Civilian Escort (`http://localhost:3000/`)**
+1. **Step 1: Open Civilian Escort (`https://web-xi-weld-22.vercel.app/`)**
    - Click **"Load Sarah Jenkins (Instant Demo)"** in the top vault banner or register a new profile with custom duress phrase.
    - Observe the tactical dark theme, screen wake lock active indicator, and duress phrase pill (*"Order iced coffee"*).
 2. **Step 2: Arm Escort Mode**
@@ -219,7 +219,7 @@ Follow this 4-step script during evaluation:
 3. **Step 3: Trigger Covert Distress**
    - Speak your configured duress phrase (*"Order iced coffee"*) or drag the **Slide-to-Panic** thumb to the right.
    - Phone vibrates quietly with haptic alert without ringing or alerting aggressors.
-4. **Step 4: Switch to CAD Command Center (`http://localhost:3000/dispatch`)**
+4. **Step 4: Switch to CAD Command Center (`https://web-xi-weld-22.vercel.app/dispatch`)**
    - Use the top navigation bar to click **[Dispatcher CAD (/dispatch)]**.
    - Observe the critical crimson banner flashing at the top.
    - Review the **Tactical GIS HUD** showing coordinates and precision lock.
