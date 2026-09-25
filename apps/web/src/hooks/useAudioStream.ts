@@ -69,58 +69,95 @@ export function useAudioStream() {
     };
   }, []);
 
-  const connectWebSocket = useCallback((duressPhrase: string, userId: string = "usr_sarah_01", userProfile?: any): Promise<WebSocket> => {
-    return new Promise((resolve, reject) => {
+  const connectWebSocketWithRetry = useCallback(
+    async (
+      duressPhrase: string,
+      userId: string = "usr_sarah_01",
+      userProfile?: any,
+      maxAttempts = 4
+    ): Promise<WebSocket> => {
+      // Warm-up ping to wake up sleeping Render backend if needed
       try {
-        const ws = new WebSocket(WS_GUARD_URL);
-        ws.binaryType = "arraybuffer";
+        const backendBase = WS_GUARD_URL.replace(/^wss:/, "https:")
+          .replace(/^ws:/, "http:")
+          .replace(/\/ws\/guard$/, "");
+        fetch(`${backendBase}/health`, { method: "GET" }).catch(() => {});
+      } catch {}
 
-        ws.onopen = () => {
-          setIsConnected(true);
-          ws.send(
-            JSON.stringify({
-              type: "START_ESCORT",
-              user_id: userProfile?.user_id || userId,
-              duress_phrase: duressPhrase,
-              gps,
-              user_profile: userProfile,
-            })
-          );
-          resolve(ws);
-        };
+      let lastError: any = null;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const ws = await new Promise<WebSocket>((resolve, reject) => {
+            const socket = new WebSocket(WS_GUARD_URL);
+            socket.binaryType = "arraybuffer";
 
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (data.type === "ESCORT_CONFIRMED") {
-              setIncidentId(data.incident_id);
-              setIsArmed(true);
-            } else if (data.type === "INCIDENT_ALERT") {
-              setIsDistress(true);
-            } else if (data.type === "ESCORT_TERMINATED") {
-              setIsArmed(false);
-              setIsDistress(false);
-            }
-          } catch (e) {
-            // Binary or non-json message
+            const timer = setTimeout(() => {
+              try {
+                socket.close();
+              } catch {}
+              reject(new Error("Connection timeout, server may still be booting."));
+            }, 8000);
+
+            socket.onopen = () => {
+              clearTimeout(timer);
+              setIsConnected(true);
+              socket.send(
+                JSON.stringify({
+                  type: "START_ESCORT",
+                  user_id: userProfile?.user_id || userId,
+                  duress_phrase: duressPhrase,
+                  gps,
+                  user_profile: userProfile,
+                })
+              );
+              resolve(socket);
+            };
+
+            socket.onmessage = (event) => {
+              try {
+                const data = JSON.parse(event.data);
+                if (data.type === "ESCORT_CONFIRMED") {
+                  setIncidentId(data.incident_id);
+                  setIsArmed(true);
+                } else if (data.type === "INCIDENT_ALERT") {
+                  setIsDistress(true);
+                } else if (data.type === "ESCORT_TERMINATED") {
+                  setIsArmed(false);
+                  setIsDistress(false);
+                }
+              } catch (e) {
+                // Binary or non-json message
+              }
+            };
+
+            socket.onerror = (err) => {
+              clearTimeout(timer);
+              setIsConnected(false);
+              reject(err);
+            };
+
+            socket.onclose = () => {
+              setIsConnected(false);
+            };
+
+            wsRef.current = socket;
+          });
+
+          return ws;
+        } catch (err) {
+          lastError = err;
+          if (attempt < maxAttempts) {
+            console.log(
+              `[Guard WS] Connection attempt ${attempt} waiting for hub... retrying in 2.5s`
+            );
+            await new Promise((r) => setTimeout(r, 2500));
           }
-        };
-
-        ws.onerror = (err) => {
-          console.warn("[Guard WS] Error:", err);
-          setIsConnected(false);
-        };
-
-        ws.onclose = () => {
-          setIsConnected(false);
-        };
-
-        wsRef.current = ws;
-      } catch (err) {
-        reject(err);
+        }
       }
-    });
-  }, [gps]);
+      throw lastError || new Error("Failed to connect to Aegis Emergency Hub after retries.");
+    },
+    [gps]
+  );
 
   const startEscort = async (
     duressPhrase: string = "order iced coffee",
@@ -156,8 +193,8 @@ export function useAudioStream() {
       });
       workletNodeRef.current = workletNode;
 
-      // 5. Connect WebSocket
-      const ws = await connectWebSocket(duressPhrase, userId, userProfile);
+      // 5. Connect WebSocket with auto-retry
+      const ws = await connectWebSocketWithRetry(duressPhrase, userId, userProfile);
 
       // 6. Handle PCM frames from AudioWorklet
       workletNode.port.onmessage = (e) => {
@@ -197,9 +234,13 @@ export function useAudioStream() {
 
       setIsArmed(true);
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.error("[AudioStream] Failed to start escort:", err);
-      alert("Microphone permission required for Armed Escort mode.");
+      if (err?.name === "NotAllowedError" || err?.message?.toLowerCase().includes("permission")) {
+        alert("Microphone permission required for Armed Escort mode.");
+      } else {
+        alert("Aegis Satellite Hub is waking up. Please give it a few seconds and try activating again.");
+      }
       return false;
     }
   };

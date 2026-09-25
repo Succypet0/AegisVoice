@@ -165,6 +165,12 @@ class OperatorActionRequest(BaseModel):
 
 
 # REST Endpoints
+@app.get("/health")
+@app.head("/health")
+def health():
+    return {"status": "ok"}
+
+
 @app.get("/api/health")
 async def health_check():
     key_configured = bool(os.getenv("ASSEMBLYAI_API_KEY"))

@@ -92,3 +92,6 @@ backend/verify_*.py
 *.spec.tsx
 tests/
 __tests__/
+
+#other files
+to be trans.txt
