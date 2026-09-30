@@ -41,6 +41,11 @@ export function useAudioStream() {
   const geoWatchIdRef = useRef<number | null>(null);
   const reconnectTimeoutRef = useRef<any>(null);
 
+  // Synchronized refs to eliminate stale closure traps inside AudioWorklet callback
+  const isDistressRef = useRef(false);
+  const isArmedRef = useRef(false);
+  const screamChunkCounterRef = useRef(0);
+
   // Initialize Geolocation Tracking
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -119,11 +124,16 @@ export function useAudioStream() {
                 if (data.type === "ESCORT_CONFIRMED") {
                   setIncidentId(data.incident_id);
                   setIsArmed(true);
+                  isArmedRef.current = true;
                 } else if (data.type === "INCIDENT_ALERT") {
                   setIsDistress(true);
+                  isDistressRef.current = true;
                 } else if (data.type === "ESCORT_TERMINATED") {
                   setIsArmed(false);
+                  isArmedRef.current = false;
                   setIsDistress(false);
+                  isDistressRef.current = false;
+                  screamChunkCounterRef.current = 0;
                 }
               } catch (e) {
                 // Binary or non-json message
@@ -201,19 +211,44 @@ export function useAudioStream() {
         if (e.data && e.data.type === "PCM_CHUNK") {
           const buffer = e.data.buffer;
 
-          // Compute instantaneous RMS level for visualization
+          // Compute instantaneous RMS level and peak amplitude
           const int16 = new Int16Array(buffer);
           let sumSquares = 0;
+          let maxSample = 0;
           for (let i = 0; i < int16.length; i++) {
+            const absVal = Math.abs(int16[i]);
+            if (absVal > maxSample) maxSample = absVal;
             sumSquares += int16[i] * int16[i];
           }
           const rms = Math.sqrt(sumSquares / int16.length);
-          const normalized = Math.min(100, (rms / 32768) * 350);
-          setAudioLevel(Math.round(normalized));
+          const rawRmsRatio = rms / 32768.0;
+          const peakRatio = maxSample / 32768.0;
 
-          // Acoustic scream/spike detector (>88% amplitude)
-          if (normalized > 88) {
-            triggerAcousticSpike();
+          // Responsive visual meter (0 to 100) scaled for UI waveform
+          const visualNormalized = Math.min(100, Math.round((rms / 32768.0) * 220));
+          setAudioLevel(visualNormalized);
+
+          // Calibrated Acoustic Distress Trigger
+          // Only checks if armed and NOT already in distress
+          if (!isDistressRef.current && isArmedRef.current) {
+            // 1. Sustained Scream Detection:
+            // Human terror scream creates sustained, near-clipping acoustic energy
+            // (Peak >= 85% ceiling AND RMS >= 55% of full scale) held continuously across >= 4 consecutive frames (~512ms).
+            if (peakRatio >= 0.85 && rawRmsRatio >= 0.55) {
+              screamChunkCounterRef.current += 1;
+              if (screamChunkCounterRef.current >= 4) {
+                triggerAcousticSpike("ACOUSTIC_SCREAM_DETECTED");
+              }
+            } else {
+              screamChunkCounterRef.current = 0;
+            }
+
+            // 2. Gunshot / High-Impact Blast Detection:
+            // Near-clipping explosive onset (Peak >= 95% ceiling) AND high frame energy (RMS >= 50%).
+            // Normal speech, ambient noise, or mic bumps (low RMS) are safely ignored.
+            if (peakRatio >= 0.95 && rawRmsRatio >= 0.50) {
+              triggerAcousticSpike("ACOUSTIC_GUNSHOT_OR_BLAST_DETECTED");
+            }
           }
 
           // Send raw binary 16kHz PCM frame over WebSocket
@@ -233,6 +268,9 @@ export function useAudioStream() {
       muteGain.connect(audioContext.destination);
 
       setIsArmed(true);
+      isArmedRef.current = true;
+      isDistressRef.current = false;
+      screamChunkCounterRef.current = 0;
       return true;
     } catch (err: any) {
       console.error("[AudioStream] Failed to start escort:", err);
@@ -259,12 +297,16 @@ export function useAudioStream() {
       audioContextRef.current = null;
     }
     setIsArmed(false);
+    isArmedRef.current = false;
     setIsDistress(false);
+    isDistressRef.current = false;
+    screamChunkCounterRef.current = 0;
     setAudioLevel(0);
     setIncidentId(null);
   };
 
   const triggerPanic = () => {
+    isDistressRef.current = true;
     setIsDistress(true);
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: "PANIC_TRIGGER" }));
@@ -275,10 +317,11 @@ export function useAudioStream() {
     }
   };
 
-  const triggerAcousticSpike = () => {
-    if (!isDistress && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "ACOUSTIC_TRIGGER" }));
+  const triggerAcousticSpike = (detail: string = "ACOUSTIC_DECIBEL_THRESHOLD") => {
+    if (!isDistressRef.current && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      isDistressRef.current = true;
       setIsDistress(true);
+      wsRef.current.send(JSON.stringify({ type: "ACOUSTIC_TRIGGER", detail }));
     }
   };
 

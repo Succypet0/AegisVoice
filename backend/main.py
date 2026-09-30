@@ -395,6 +395,11 @@ async def websocket_guard_endpoint(websocket: WebSocket):
         )
 
     async def _trigger_emergency(trigger_type: str, context_text: str = ""):
+        # Prevent duplicate emergency broadcast storm if session is already in distress
+        if session_state.is_distress and session_state.incident_id:
+            logger.info(f"[Guard WS] Already in active distress for incident {session_state.incident_id}. Ignoring duplicate trigger: {trigger_type}")
+            return
+
         session_state.is_distress = True
         logger.warning(f"[Guard WS] TRIP EMERGENCY PROTOCOL: {trigger_type}")
 
@@ -531,8 +536,9 @@ async def websocket_guard_endpoint(websocket: WebSocket):
                     await _trigger_emergency("MANUAL_PANIC_SLIDER", "User slid manual panic button.")
 
                 elif event_type == "ACOUSTIC_TRIGGER":
-                    logger.warning("[Guard WS] Sudden acoustic decibel spike trigger!")
-                    await _trigger_emergency("ACOUSTIC_DECIBEL_THRESHOLD", "Acoustic decibel scream/impact spike.")
+                    detail = event.get("detail", "ACOUSTIC_DECIBEL_THRESHOLD")
+                    logger.warning(f"[Guard WS] Verified acoustic panic trigger: {detail}")
+                    await _trigger_emergency(detail, f"Verified acoustic distress: {detail}")
 
                 elif event_type == "GPS_UPDATE":
                     gps_data = event.get("gps", {})

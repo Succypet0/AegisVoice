@@ -10,6 +10,7 @@ import json
 import logging
 import os
 from pathlib import Path
+import re
 import urllib.parse
 from typing import Callable, Optional
 from dotenv import load_dotenv
@@ -132,15 +133,17 @@ class AssemblyAIStreamingClient:
                     end_of_turn = data.get("end_of_turn", False)
 
                     if transcript:
-                        # Check for duress trigger
-                        if not self._duress_tripped and self.duress_phrase:
-                            if self.duress_phrase in transcript.lower():
+                        # Check for duress trigger using word-boundary regex to prevent partial substring matches
+                        clean_duress = self.duress_phrase.strip().lower()
+                        if not self._duress_tripped and clean_duress and len(clean_duress) >= 3:
+                            pattern = rf"\b{re.escape(clean_duress)}\b"
+                            if re.search(pattern, transcript.lower()):
                                 self._duress_tripped = True
                                 logger.warning(
-                                    f"[AssemblyAI STT] DURESS TRIGGER DETECTED: '{self.duress_phrase}' in transcript: '{transcript}'"
+                                    f"[AssemblyAI STT] DURESS TRIGGER DETECTED: '{clean_duress}' in transcript: '{transcript}'"
                                 )
                                 if self.on_duress:
-                                    self.on_duress(self.duress_phrase, transcript)
+                                    self.on_duress(clean_duress, transcript)
 
                         if end_of_turn:
                             self._accumulated_transcript.append(transcript)
@@ -161,34 +164,35 @@ class AssemblyAIStreamingClient:
 
     async def _simulate_audio_tick(self):
         """High-fidelity simulation for offline/demo scenarios."""
-        # Simulated distress script
+        # Simulated neutral escort monitoring turns (never auto-trips distress)
         turns = [
-            ("Hello? Can someone hear me?", True),
-            ("Someone has been following me from the supermarket...", True),
-            ("Please stay away from me, don't come closer...", False),
-            ("Please, I don't want any trouble, just let me order iced coffee...", True),
-            ("He has a knife! Help! Someone call the police!", True),
+            ("Escort mode engaged. Ambient monitoring active.", True),
+            ("Walking along the road, path is clear.", True),
+            ("Ambient street noise detected, escort continues safely.", True),
         ]
         if not hasattr(self, "_mock_step"):
             self._mock_step = 0
             self._mock_counter = 0
 
         self._mock_counter += 1
-        # Emit a simulated turn every ~6 chunks
-        if self._mock_counter % 6 == 0 and self._mock_step < len(turns):
+        # Emit a simulated turn every ~12 chunks (~1.5s)
+        if self._mock_counter % 12 == 0 and self._mock_step < len(turns):
             text, is_final = turns[self._mock_step]
             self._mock_step += 1
 
             if self.on_speech_started:
                 self.on_speech_started()
 
-            if not self._duress_tripped and self.duress_phrase in text.lower():
-                self._duress_tripped = True
-                logger.warning(
-                    f"[Mock STT] DURESS TRIGGER DETECTED: '{self.duress_phrase}' in transcript!"
-                )
-                if self.on_duress:
-                    self.on_duress(self.duress_phrase, text)
+            clean_duress = self.duress_phrase.strip().lower()
+            if not self._duress_tripped and clean_duress and len(clean_duress) >= 3:
+                pattern = rf"\b{re.escape(clean_duress)}\b"
+                if re.search(pattern, text.lower()):
+                    self._duress_tripped = True
+                    logger.warning(
+                        f"[Mock STT] DURESS TRIGGER DETECTED: '{clean_duress}' in transcript!"
+                    )
+                    if self.on_duress:
+                        self.on_duress(clean_duress, text)
 
             if is_final:
                 self._accumulated_transcript.append(text)
