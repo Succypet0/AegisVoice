@@ -308,24 +308,52 @@ def record_operator_action(
     action_taken: str,
     reviewed_by: str = "Operator",
     contacts_notified: bool = False,
-    new_status: Optional[str] = None
+    new_status: Optional[str] = None,
+    tier: Optional[str] = None,
+    assigned_unit: Optional[str] = None,
+    eta: Optional[str] = None,
+    cad_ticket: Optional[str] = None,
+    intervention_level: Optional[str] = None,
+    intervention_fee: Optional[float] = None,
+    partner_payout: Optional[float] = None,
+    billing_status: Optional[str] = None,
 ) -> bool:
     db = get_db()
     incidents_table = db.table("incidents")
     incident_query = Query()
 
+    action_record: Dict[str, Any] = {
+        "reviewed_by": reviewed_by,
+        "action_taken": action_taken,
+        "contacts_notified": contacts_notified,
+        "dispatched_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if tier:
+        action_record["tier"] = tier
+    if assigned_unit:
+        action_record["assigned_unit"] = assigned_unit
+    if eta:
+        action_record["eta"] = eta
+    if cad_ticket:
+        action_record["cad_ticket"] = cad_ticket
+    if intervention_level:
+        action_record["intervention_level"] = intervention_level
+    if intervention_fee is not None:
+        action_record["intervention_fee"] = intervention_fee
+    if partner_payout is not None:
+        action_record["partner_payout"] = partner_payout
+    if billing_status:
+        action_record["billing_status"] = billing_status
+
     update_payload: Dict[str, Any] = {
-        "operator_actions": {
-            "reviewed_by": reviewed_by,
-            "action_taken": action_taken,
-            "contacts_notified": contacts_notified,
-            "dispatched_at": datetime.now(timezone.utc).isoformat(),
-        }
+        "operator_actions": action_record
     }
     if new_status:
         update_payload["status"] = new_status
-    elif action_taken == "DISPATCH_CONFIRMED":
-        update_payload["status"] = "DISPATCHED"
+    elif action_taken in ["DISPATCH_CONFIRMED", "TIER2_GOVERNMENT_DISPATCHED"]:
+        update_payload["status"] = "POLICE_DISPATCHED"
+    elif action_taken in ["TIER1_AGENTS_DISPATCHED"]:
+        update_payload["status"] = "AGENTS_EN_ROUTE"
     elif action_taken == "FALSE_ALARM":
         update_payload["status"] = "FALSE_ALARM"
 

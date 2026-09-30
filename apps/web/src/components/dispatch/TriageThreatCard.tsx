@@ -80,6 +80,9 @@ export const TriageThreatCard: React.FC<TriageThreatCardProps> = ({
 
   const style = getThreatColor();
 
+  const isLethalWeapon = /gun|firearm|pistol|rifle|shoot|armed|lethal/i.test(weapons);
+  const recommendedTier = (isLethalWeapon || distressScore >= 9.5) ? "TIER_2" : "TIER_1";
+
   return (
     <div
       className={`bg-[#0F172A] border rounded-xl p-4 flex flex-col justify-between transition-all ${style.glow}`}
@@ -143,9 +146,23 @@ export const TriageThreatCard: React.FC<TriageThreatCardProps> = ({
         </div>
       </div>
 
-      <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-mono">
-        <span className="text-slate-400">RECOMMENDED ACTION:</span>
-        <span className="text-red-400 font-bold tracking-wider">{action}</span>
+      <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex flex-col gap-2">
+        <div className="flex items-center justify-between text-[10px] font-mono">
+          <span className="text-slate-400">RECOMMENDED PROTOCOL:</span>
+          {recommendedTier === "TIER_2" ? (
+            <span className="px-2 py-0.5 rounded bg-red-950 text-red-300 border border-red-700 font-bold tracking-wider">
+              TIER 2: GOVERNMENT POLICE
+            </span>
+          ) : (
+            <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700 font-bold tracking-wider">
+              TIER 1: AEGIS RAPID AGENTS
+            </span>
+          )}
+        </div>
+        <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
+          <span>AI ACTION:</span>
+          <span className="text-slate-300 font-medium truncate max-w-[200px]">{action}</span>
+        </div>
       </div>
     </div>
   );

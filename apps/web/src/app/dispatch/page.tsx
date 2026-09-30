@@ -37,6 +37,8 @@ export default function DispatchPortalPage() {
     isDistress,
     logs,
     dispatchAuthorities,
+    dispatchTier1,
+    dispatchTier2,
     broadcastSms,
     standDown,
     refreshIncidents,
@@ -203,13 +205,21 @@ export default function DispatchPortalPage() {
             />
           </div>
 
-          {/* 1-Click CAD Dispatch Matrix */}
+          {/* Two-Tier CAD Dispatch Matrix */}
           <div className="flex-[3] min-h-0">
             <OperatorActions
               incidentId={selectedIncidentId || (currentIncident ? (currentIncident.id || currentIncident.incident_id) : null)}
               victim={victimData}
               isDistress={isDistress}
+              recommendedTier={
+                /gun|firearm|pistol|rifle|shoot|armed|lethal/i.test(displayTriage?.weapons_detected || "") ||
+                (displayTriage?.caller_distress_score || 0) >= 9.5
+                  ? "TIER_2"
+                  : "TIER_1"
+              }
               onDispatch={dispatchAuthorities}
+              onDispatchTier1={dispatchTier1}
+              onDispatchTier2={dispatchTier2}
               onBroadcastSms={broadcastSms}
               onStandDown={standDown}
             />

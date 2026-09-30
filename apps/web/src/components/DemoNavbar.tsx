@@ -9,8 +9,9 @@ const BACKEND_URL = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:80
 
 export const DemoNavbar: React.FC = () => {
   const pathname = usePathname();
+  const isProof = pathname === "/proof";
   const isDispatch = pathname?.startsWith("/dispatch");
-  const isGuard = !isDispatch;
+  const isGuard = pathname === "/";
   const [hubStatus, setHubStatus] = useState<"checking" | "online" | "waking">("checking");
 
   useEffect(() => {
@@ -82,6 +83,17 @@ export const DemoNavbar: React.FC = () => {
           >
             <Radio className="w-3 h-3" />
             <span>Dispatcher CAD (/dispatch)</span>
+          </Link>
+
+          <Link
+            href="/proof"
+            className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-md transition-all ${
+              isProof
+                ? "bg-sky-500/20 text-sky-300 font-bold border border-sky-500/40 shadow-sm"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <span>💎 Proof (/proof)</span>
           </Link>
         </div>
       </div>

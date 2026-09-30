@@ -71,6 +71,7 @@ scratch/
 PRD.md
 PRD_MERGED.md
 checkpoints_merged.md
+PITCH_SCRIPT_UNIFIED_CHAMPION.md
 
 # Commercial Enterprise Standalone Apps (Preserved locally for post-hackathon startup)
 apps/guard-pwa
@@ -93,5 +94,21 @@ backend/verify_*.py
 tests/
 __tests__/
 
-#other files
+# Other non-production files & tooling
 to be trans.txt
+render.yaml
+tools/
+pitch_assets/
+
+# Hackathon Presentation, Pitch & Submission Assets (non-production)
+LABLAB_SUBMISSION_METADATA.md
+VIDEO_RECORDING_GUIDE.md
+slides/
+scripts/
+*.pptx
+*.pdf
+*.key
+*.tmp
+*.bak
+coverage/
+.nyc_output/

@@ -7,7 +7,17 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["'Inter'", "system-ui", "-apple-system", "sans-serif"],
+        heading: ["'Plus Jakarta Sans'", "'Inter'", "system-ui", "sans-serif"],
+      },
       colors: {
+        // Palette 1 Design Tokens: Calm & Confident
+        canvas: "#F8FAFC",      // Ghost Slate near-white background
+        ink: "#090D16",         // Deep Charcoal near-black text
+        slateNavy: "#0F172A",   // Deep Slate structural main
+        cobalt: "#0284C7",      // Precision Cobalt accent
+
         aegis: {
           bg: "#070B12",
           card: "#0D1424",

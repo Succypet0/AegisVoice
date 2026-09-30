@@ -7,13 +7,21 @@
 :root {
   --background: #070B12;
   --foreground: #F8FAFC;
+  --canvas-bg: #F8FAFC;
+  --ink-text: #090D16;
+  --slate-main: #0F172A;
+  --cobalt-accent: #0284C7;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading), var(--font-sans), sans-serif;
 }
 
 /* Custom Tactical Scrollbars */

@@ -241,22 +241,64 @@ async def handle_operator_action(incident_id: str, req: OperatorActionRequest):
 
     user_profile = get_user(inc.get("user_id", "usr_sarah_01"))
 
-    if req.action == "DISPATCH_CONFIRMED":
+    if req.action in ["DISPATCH_TIER1_AGENTS", "DISPATCH_PRIVATE_SECURITY"]:
+        unit = "Aegis Patrol Alpha (Lekki #14)"
+        eta = "2m 15s"
+        intervention_fee = 4500.0   # ₦4,500 (~$3.00)
+        partner_payout = 3150.0     # 70% direct cash payout to patrol team
         record_operator_action(
             incident_id=incident_id,
-            action_taken="DISPATCH_CONFIRMED",
+            action_taken="TIER1_AGENTS_DISPATCHED",
             reviewed_by=req.operator_name,
-            new_status="DISPATCHED",
+            new_status="AGENTS_EN_ROUTE",
+            tier="TIER_1",
+            assigned_unit=unit,
+            eta=eta,
+            intervention_level="LEVEL_1_PATROL",
+            intervention_fee=intervention_fee,
+            partner_payout=partner_payout,
+            billing_status="COLLECTED",
         )
         await dispatch_hub.broadcast({
-            "type": "ACTION_CONFIRMED",
+            "type": "TIER1_DISPATCH_CONFIRMED",
             "incident_id": incident_id,
-            "action": "DISPATCH_CONFIRMED",
-            "cad_ticket": f"CAD-2026-{incident_id[-4:]}",
+            "tier": "TIER_1",
+            "unit": unit,
+            "eta": eta,
+            "intervention_fee": intervention_fee,
+            "partner_payout": partner_payout,
             "operator": req.operator_name,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })
-        return {"status": "dispatched", "incident_id": incident_id}
+        return {"status": "tier1_dispatched", "incident_id": incident_id, "unit": unit, "eta": eta, "fee": intervention_fee}
+
+    elif req.action in ["DISPATCH_TIER2_GOVERNMENT", "DISPATCH_CONFIRMED"]:
+        cad_ticket = f"CAD-2026-{incident_id[-4:]}"
+        intervention_fee = 20000.0  # ₦20,000 tactical armed extraction
+        partner_payout = 15000.0    # 75% payout to armed private partner
+        record_operator_action(
+            incident_id=incident_id,
+            action_taken="TIER2_GOVERNMENT_DISPATCHED",
+            reviewed_by=req.operator_name,
+            new_status="POLICE_DISPATCHED",
+            tier="TIER_2",
+            cad_ticket=cad_ticket,
+            intervention_level="LEVEL_2_TACTICAL",
+            intervention_fee=intervention_fee,
+            partner_payout=partner_payout,
+            billing_status="COLLECTED",
+        )
+        await dispatch_hub.broadcast({
+            "type": "TIER2_DISPATCH_CONFIRMED",
+            "incident_id": incident_id,
+            "action": "DISPATCH_TIER2_GOVERNMENT",
+            "cad_ticket": cad_ticket,
+            "intervention_fee": intervention_fee,
+            "partner_payout": partner_payout,
+            "operator": req.operator_name,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        return {"status": "tier2_dispatched", "incident_id": incident_id, "cad_ticket": cad_ticket, "fee": intervention_fee}
 
     elif req.action == "BROADCAST_SMS":
         sms_res = await broadcast_emergency_sms(
@@ -280,21 +322,27 @@ async def handle_operator_action(incident_id: str, req: OperatorActionRequest):
         return {"status": "sms_broadcast_complete", "details": sms_res}
 
     elif req.action == "FALSE_ALARM":
+        fuel_surcharge = 3000.0  # ₦3,000 false alarm deterrence / fuel reimbursement
         record_operator_action(
             incident_id=incident_id,
             action_taken="FALSE_ALARM",
             reviewed_by=req.operator_name,
             new_status="FALSE_ALARM",
+            intervention_level="FALSE_ALARM",
+            intervention_fee=fuel_surcharge,
+            partner_payout=2400.0,   # 80% fuel reimbursement to responding team
+            billing_status="PENDING",
         )
         session_state.reset()
         await dispatch_hub.broadcast({
             "type": "INCIDENT_STAND_DOWN",
             "incident_id": incident_id,
             "status": "FALSE_ALARM",
+            "fuel_surcharge": fuel_surcharge,
             "operator": req.operator_name,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })
-        return {"status": "false_alarm_recorded", "incident_id": incident_id}
+        return {"status": "false_alarm_recorded", "incident_id": incident_id, "surcharge": fuel_surcharge}
 
     raise HTTPException(status_code=400, detail=f"Unknown operator action: {req.action}")
 
